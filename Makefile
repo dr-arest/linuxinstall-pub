@@ -10,8 +10,15 @@ prepare:
 decrypt:
 		[ ! -f githubsec.aes -o ! -f githubsec.aes.sha256 ] && echo "Files githubsec.aes and githubsec.aes.sha256 are required" && exit 1
 		sha256sum -c ./githubsec.aes.sha256 || { echo "File corrupted. Exit." >&2; exit 1; }
-		echo "Enter password: "; read -s password; export password
-		openssl enc -d -aes-256-cbc -in ./githubsec.aes -pbkdf2 -iter 10000 -salt -out ./githubsec.conf -base64 -pass env:password && echo "Decryption successfull." || echo "Decryption failed."
+		@echo -n "Enter password: "; \
+		read -s password; \
+		echo; \
+		if openssl enc -d -aes-256-cbc -in ./githubsec.aes -pbkdf2 -iter 10000 -salt -out ./githubsec.conf -base64 -pass env:password; then \
+			echo "Decryption successful."; \
+		else \
+			echo "Decryption failed."; \
+			exit 1; \
+		fi
 		chmod 600 githubsec.conf
 git-auth:
 		gh auth login --with-token < githubsec.conf
