@@ -9,7 +9,7 @@ prepare:
 		sudo apt install git gh
 decrypt:
 		[ ! -f githubsec.aes -o ! -f githubsec.aes.sha256 ] && echo "File githubsec.conf is required" && exit 1
-		if [  $(sha256sum -c linuxinstall.aes.sha256) ]; then
+		if [  $(sha256sum -c githubsec.aes.sha256) ]; then
 	 		openssl enc -d -aes-255-cbc -in ./githubsec.aes -pbkdf2 -iter 10000 -salt -out ./githubsec.conf -base64 -pass stdin
 			chmod 600 githubsec.conf
 		else
