@@ -15,32 +15,22 @@ prepare:
 		sudo apt install git gh
 decrypt:
 		FAIL=0; [ ! -f $(CRED_FILE_AES) ] && FAIL=1; [ ! -f $(CRED_FILE_SHA256) ] && FAIL=1; if [ $$FAIL -eq 1 ]; then echo "Files $(CRED_FILE_AES) and $(CRED_FILE_SHA256) are required"; exit 1; else echo "Files $(CRED_FILE_AES) and $(CRED_FILE_SHA256) are present. Verifying checksum..."; fi
-		if [ `sha256sum -c $(CRED_FILE_SHA256) ` ]; then echo "File corrupted. Exit." >&2; exit 1; else echo "Checksum correct."; fi 
-		echo -n "Enter password: "; \
-		read -s password; \
-		echo; \
-		echo $$password > pass.txt; \
-		if openssl enc -d -aes-256-cbc -in $(CRED_FILE_AES) -pbkdf2 -iter 10000 -salt -out $(CRED_FILE_OPEN)  -base64 -pass file:pass.txt; then \
-			echo "Decryption successful."; \
-		else \
-			echo "Decryption failed."; \
-			exit 1; \
-		fi
-		rm pass.txt
+		if ! sha256sum -c $(CRED_FILE_SHA256); then echo "File corrupted. Exit." >&2; exit 1; else echo "Checksum correct."; fi
+                echo -n "Enter password: "; \
+                read -s password; \
+                echo; \
+                if echo $$password | openssl enc -d -aes-256-cbc -in $(CRED_FILE_AES) -pbkdf2 -iter 10000 -salt -out $(CRED_FILE_OPEN) -base64 -pass stdin; then \
+                        echo "Decryption successful."; \
+                else \
+                        echo "Decryption failed."; \
+                        exit 1; \
+                fi
 		chmod 600 $(CRED_FILE_OPEN)
+
 git-auth:
 		@if [ -f $(CRED_FILE_OPEN) ]; then \
 			echo "Reading token from $(CRED_FILE_OPEN)..."; \
-			GITHUB_TOKEN=$$(cat $(CRED_FILE_OPEN) | tr -d '\n'); \
-			echo $$GITHUB_TOKEN > token.txt; \
-			if [ -z "$$GITHUB_TOKEN" ]; then \
-				echo "Token is empty! Ensure $(CRED_FILE_OPEN) contains the token."; \
-				exit 1; \
-			else \
-				echo "Token read successfully: $$GITHUB_TOKEN"; \
-				gh auth login --with-token < token.txt; \
-				rm token.txt; \
-			fi; \
+			gh auth login --with-token < githubsec.conf; \
 		else \
 			echo "File not found: $(CRED_FILE_OPEN)"; \
 			exit 1; \
