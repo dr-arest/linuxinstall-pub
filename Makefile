@@ -192,33 +192,62 @@ rekey: verify-env
 ###############################################################################
 # Install scripts
 ###############################################################################
+LINUXINSTALL_DIR := $(HOME)/linuxinstall
+LINUXINSTALL_REPO := dr-arest/linuxinstall
 
 install-user:
+	@printf '\n==> Prepare private repo (user)\n'
+	@if [ -d "$(LINUXINSTALL_DIR)/.git" ]; then \
+		echo "Updating existing repo..."; \
+		git -C "$(LINUXINSTALL_DIR)" pull --ff-only; \
+	else \
+		echo "Cloning private repo..."; \
+		gh repo clone "$(LINUXINSTALL_REPO)" "$(LINUXINSTALL_DIR)"; \
+	fi
 	@printf '\n==> Run user installers\n'
-	@if [ -d ./user ]; then \
+	@if [ -d "$(LINUXINSTALL_DIR)/user" ]; then \
 		found=0; \
 		while IFS= read -r file; do \
 			found=1; \
 			echo "==> $$file"; \
-			bash "$$file"; \
-		done < <(find ./user -maxdepth 1 -type f -executable | sort); \
-		[ $$found -eq 1 ] || echo "No executable files in ./user"; \
+			if bash "$$file"; then \
+				echo "Done."; \
+			else \
+				echo "Failed: $$file" >&2; \
+				exit 1; \
+			fi; \
+		done < <(find "$(LINUXINSTALL_DIR)/user" -maxdepth 1 -type f -executable | sort); \
+		[ $$found -eq 1 ] || echo "No executable files in user"; \
 	else \
-		echo "Directory ./user not found."; \
+		echo "Directory user not found in repo."; \
 	fi
 
+
 install-system:
+	@printf '\n==> Prepare private repo (system)\n'
+	@if [ -d "$(LINUXINSTALL_DIR)/.git" ]; then \
+		echo "Updating existing repo..."; \
+		git -C "$(LINUXINSTALL_DIR)" pull --ff-only; \
+	else \
+		echo "Cloning private repo..."; \
+		gh repo clone "$(LINUXINSTALL_REPO)" "$(LINUXINSTALL_DIR)"; \
+	fi
 	@printf '\n==> Run system installers\n'
-	@if [ -d ./system ]; then \
+	@if [ -d "$(LINUXINSTALL_DIR)/system" ]; then \
 		found=0; \
 		while IFS= read -r file; do \
 			found=1; \
 			echo "==> $$file"; \
-			sudo "$$file"; \
-		done < <(find ./system -maxdepth 1 -type f -executable | sort); \
-		[ $$found -eq 1 ] || echo "No executable files in ./system"; \
+			if sudo "$$file"; then \
+				echo "Done."; \
+			else \
+				echo "Failed: $$file" >&2; \
+				exit 1; \
+			fi; \
+		done < <(find "$(LINUXINSTALL_DIR)/system" -maxdepth 1 -type f -executable | sort); \
+		[ $$found -eq 1 ] || echo "No executable files in system"; \
 	else \
-		echo "Directory ./system not found."; \
+		echo "Directory system not found in repo."; \
 	fi
 
 ###############################################################################
