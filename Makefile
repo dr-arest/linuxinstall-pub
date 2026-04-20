@@ -1,90 +1,89 @@
 SHELL := /bin/bash
-CRED_FILE_BASE := githubsec
-CRED_FILE_OPEN := ./$(CRED_FILE_BASE).conf
-CRED_FILE_AES := ./$(CRED_FILE_BASE).aes
-CRED_FILE_SHA256 := ./$(CRED_FILE_BASE).aes.sha256
-ADMIN_MAKEFILE := Makefile.admin.mk
-PASSWORD_FILE := ./password.dat
-TOKEN = $(shell cat $(CRED_FILE_OPEN))
+.SHELLFLAGS := -eu -o pipefail -c
 
-.PHONY: all prepare decrypt git-auth git-repos git-repo-linuxinstall git-repo-home_etc git-repo-QuickRef install install-user install-system clean clean-sec clean-public
+ENV_OPEN := env.sh
+ENV_AES  := env.sh.aes
 
+.PHONY: install create clean test-env
 
-# Виконує скрипт prepare_install.sh
-all: prepare decrypt git-auth git-repos clean-sec
+############################################################
+# INSTALL
+############################################################
 
-prepare:
-		sudo apt install git gh
-decrypt:
-		FAIL=0; [ ! -f $(CRED_FILE_AES) ] && FAIL=1; [ ! -f $(CRED_FILE_SHA256) ] && FAIL=1; if [ $$FAIL -eq 1 ]; then echo "Files $(CRED_FILE_AES) and $(CRED_FILE_SHA256) are required"; exit 1; else echo "Files $(CRED_FILE_AES) and $(CRED_FILE_SHA256) are present. Verifying checksum..."; fi
-		if ! sha256sum -c $(CRED_FILE_SHA256); then echo "File corrupted. Exit." >&2; exit 1; else echo "Checksum correct."; fi
-                echo -n "Enter password: "; \
-                read -s password; \
-		echo $$password >! $$PASSWORD_FILE; \
-		chmod 600 $$PASSWORD_FILE ; \
-                echo; \
-                if echo $$password | openssl enc -d -aes-256-cbc -in $(CRED_FILE_AES) -pbkdf2 -iter 10000 -salt -out $(CRED_FILE_OPEN) -base64 -pass stdin; then \
-                        echo "Decryption successful."; \
-                else \
-                        echo "Decryption failed."; \
-                        exit 1; \
-                fi
-		chmod 600 $(CRED_FILE_OPEN)
+install:
+	@read -s -p "Enter decrypt password: " PASS; echo; \
+	eval "$$(openssl enc -d -aes-256-gcm \
+		-in $(ENV_AES) \
+		-pbkdf2 -iter 10000 -salt -base64 \
+		-pass pass:$$PASS 2>/dev/null)" ; \
+	unset PASS ; \
+	[ -n "$$GH_TOKEN" ] || { echo "GH_TOKEN not found"; exit 1; }; \
+	echo "Token loaded."; \
+	echo "$$GH_TOKEN" | gh auth login --with-token ; \
+	$(MAKE) install-user ; \
+	$(MAKE) install-system
 
-git-auth:
-		@if [ -f $(CRED_FILE_OPEN) ]; then \
-			echo "Reading token from $(CRED_FILE_OPEN)..."; \
-			gh auth login --with-token < githubsec.conf; \
-		else \
-			echo "File not found: $(CRED_FILE_OPEN)"; \
-			exit 1; \
-		fi
+############################################################
+# CREATE
+############################################################
 
-git-repos: git-repo-linuxinstall git-repo-home_etc  git-repo-QuickRef
+create:
+	@TOKEN="$${GH_TOKEN:-}"; \
+	if [ -z "$$TOKEN" ]; then \
+		read -p "Enter GH_TOKEN: " TOKEN; \
+	fi; \
+	[ -n "$$TOKEN" ] || { echo "Empty token"; exit 1; }; \
+	read -s -p "Enter encryption password: " PASS; echo; \
+	printf 'export GH_TOKEN="%s"\n' "$$TOKEN" > $(ENV_OPEN); \
+	chmod 600 $(ENV_OPEN); \
+	openssl enc -aes-256-gcm \
+		-in $(ENV_OPEN) \
+		-out $(ENV_AES) \
+		-pbkdf2 -iter 10000 -salt -base64 \
+		-pass pass:$$PASS; \
+	shred -u $(ENV_OPEN) 2>/dev/null || rm -f $(ENV_OPEN); \
+	echo "Created $(ENV_AES)"
 
-git-repo-linuxinstall:
-		cd; gh repo clone dr-arest/linuxinstall; \
-		cd linuxinstall ;\
-                if cat $$PASSWORD_FILE | openssl enc -d -aes-256-cbc -in $(ADMIN_MAKEFILE).aes -pbkdf2 -iter 10000 -salt -out $(ADMIN_MAKEFILE) -base64 -pass stdin; then \
-                        echo "Decryption successful."; \
-                else \
-                        echo "Decryption failed."; \
-                        exit 1; \
-                fi
-	
-git-repo-home_etc:
-		cd; gh repo clone dr-arest/.home_etc ;\
-		cd .home_etc ;\
-		git submodule update --init --recursive ;\
-		cd ;\
-		ln -s .home_etc/rc.d ;\
-		ln -s .home_etc/.func
-	
-git-repo-home_bin:
-		cd; gh repo clone dr-arest/.home_bin
-
-git-repo-QuickRef:
-		cd ; gh repo clone dr-arest/QuickRef
-	
-git-repo-bashlib:
-		cd; gh repo clone dr-arest/bashlib
-
-
-install:	install-system install-system
+############################################################
+# USER INSTALL
+############################################################
 
 install-user:
+	@echo "Running user installers..."
+	@if [ -d ./user ]; then \
 		while read file; do \
-			bash $$file && echo Done. || echo -e "Failed!"; \
-		done < <(readlink -f $$(find ./user -maxdepth 1 -type f -executable   -print))
+			echo "==> $$file"; \
+			bash "$$file"; \
+		done < <(find ./user -maxdepth 1 -type f -executable | sort); \
+	fi
+
+############################################################
+# SYSTEM INSTALL
+############################################################
 
 install-system:
+	@echo "Running system installers..."
+	@if [ -d ./system ]; then \
 		while read file; do \
-			sudo $$file && echo "Done." || echo -e "Failed!"; \
-		done < <(readlink -f $$(find ./system -maxdepth 1 -type f -executable   -print))
+			echo "==> $$file"; \
+			sudo "$$file"; \
+		done < <(find ./system -maxdepth 1 -type f -executable | sort); \
+	fi
 
-clean: clean-sec clean-public
-clean-sec:
-	rm -rf githubsec.conf
+############################################################
+# CLEAN
+############################################################
 
-clean-public:
-	rm -rf ~/linuxinstall-public
+clean:
+	rm -f $(ENV_OPEN)
+
+############################################################
+# TEST
+############################################################
+
+test-env:
+	@read -s -p "Password: " PASS; echo; \
+	openssl enc -d -aes-256-gcm \
+		-in $(ENV_AES) \
+		-pbkdf2 -iter 10000 -salt -base64 \
+		-pass pass:$$PASS
