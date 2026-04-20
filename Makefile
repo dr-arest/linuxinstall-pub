@@ -43,8 +43,8 @@ git-auth:
 git-repos: git-repo-linuxinstall git-repo-home_etc  git-repo-QuickRef
 
 git-repo-linuxinstall:
-		cd; gh repo clone dr-arest/linuxinstall
-		cd linuxinstall
+		cd; gh repo clone dr-arest/linuxinstall; \
+		cd linuxinstall ;\
                 if cat $$PASSWORD_FILE | openssl enc -d -aes-256-cbc -in $(ADMIN_MAKEFILE).aes -pbkdf2 -iter 10000 -salt -out $(ADMIN_MAKEFILE) -base64 -pass stdin; then \
                         echo "Decryption successful."; \
                 else \
@@ -53,11 +53,11 @@ git-repo-linuxinstall:
                 fi
 	
 git-repo-home_etc:
-		cd; gh repo clone dr-arest/.home_etc
-		cd .home_etc
-		git submodule update --init --recursive
-		cd
-		ln -s .home_etc.rc.d
+		cd; gh repo clone dr-arest/.home_etc ;\
+		cd .home_etc ;\
+		git submodule update --init --recursive ;\
+		cd ;\
+		ln -s .home_etc/rc.d ;\
 		ln -s .home_etc/.func
 	
 git-repo-home_bin:
