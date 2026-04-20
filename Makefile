@@ -10,7 +10,7 @@ ENV_AES         := env.sh.enc
 ENV_SHA256      := env.sh.enc.sha256
 
 # Upgraded cipher: AES-256-GCM (AEAD)
-OPENSSL_CIPHER  := -aes-256-gcm
+OPENSSL_CIPHER  := -aes-256-ctr
 OPENSSL_KDF     := -pbkdf2 -iter 200000 -salt -base64
 
 ###############################################################################
@@ -98,8 +98,10 @@ logout:
 
 create:
 	@printf '\n==> Create encrypted env\n'
-	@TOKEN="$${GH_TOKEN:-}"; \
-	if [ -z "$$TOKEN" ]; then \
+	@if [ -n "$${GH_TOKEN+x}" ] && [ -n "$${GH_TOKEN}" ]; then \
+		TOKEN="$$GH_TOKEN"; \
+		echo "Using GH_TOKEN from environment."; \
+	else \
 		read -r -p "Enter GH_TOKEN: " TOKEN; \
 	fi; \
 	[ -n "$$TOKEN" ] || { echo "GH_TOKEN empty."; exit 1; }; \
