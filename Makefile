@@ -123,7 +123,10 @@ create:
 	sha256sum "$(ENV_AES)" > "$(ENV_SHA256)"; \
 	shred -u "$(ENV_OPEN)" 2>/dev/null || rm -f "$(ENV_OPEN)"; \
 	unset TOKEN PASS1 PASS2; \
-	echo "Created $(ENV_AES)"
+	echo "Created $(ENV_AES)"; \
+	read -r -n 1 -p "Commit to repository? (Y/n): " ANS ; \
+	[[ $$ANS =~ [Yy] ]] && git add $(ENV_AES) $(ENV_SHA256) && git commit -m "Autocommit after new password update"
+	
 
 rotate-token: verify-env
 	@printf '\n==> Rotate GH_TOKEN\n'
