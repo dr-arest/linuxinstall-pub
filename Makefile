@@ -214,7 +214,9 @@ install-user:
 	printf '\n==> Run user installers\n'; \
 	if [ -d "$(LINUXINSTALL_DIR)/user" ]; then \
 		cd "$(LINUXINSTALL_DIR)/user"; \
-		user_install.sh; \
+		echo "Directory: $(pwd)"; \
+		ls -l user_install.sh; \
+		bash user_install.sh; \
 		# found=0; \
 		# while IFS= read -r file; do \
 		# 	found=1; \
