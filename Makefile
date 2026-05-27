@@ -206,21 +206,24 @@ install-user:
 	else \
 		echo "Cloning private repo..."; \
 		gh repo clone "$(LINUXINSTALL_REPO)" "$(LINUXINSTALL_DIR)"; \
-	fi
-	@printf '\n==> Run user installers\n'
-	@if [ -d "$(LINUXINSTALL_DIR)/user" ]; then \
-		found=0; \
-		while IFS= read -r file; do \
-			found=1; \
-			echo "==> $$file"; \
-			if bash "$$file"; then \
-				echo "Done."; \
-			else \
-				echo "Failed: $$file" >&2; \
-				exit 1; \
-			fi; \
-		done < <(find "$(LINUXINSTALL_DIR)/user" -maxdepth 1 -type f -executable | sort); \
-		[ $$found -eq 1 ] || echo "No executable files in user"; \
+	fi; \
+	SAVEDCWD=$(pwd); \
+	printf '\n==> Run user installers\n'; \
+	if [ -d "$(LINUXINSTALL_DIR)/user" ]; then \
+		cd "$(LINUXINSTALL_DIR)/user"; \
+		user_install.sh; \
+		# found=0; \
+		# while IFS= read -r file; do \
+		# 	found=1; \
+		# 	echo "==> $$file"; \
+		# 	if bash "$$file"; then \
+		# 		echo "Done."; \
+		# 	else \
+		# 		echo "Failed: $$file" >&2; \
+		# 		exit 1; \
+		# 	fi; \
+		# done < <(find "$(LINUXINSTALL_DIR)/user" -maxdepth 1 -type f -executable | sort); \
+		# [ $$found -eq 1 ] || echo "No executable files in user"; \
 	else \
 		echo "Directory user not found in repo."; \
 	fi
