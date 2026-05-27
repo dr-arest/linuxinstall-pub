@@ -59,7 +59,9 @@ install: verify-env
 		$(OPENSSL_KDF) \
 		-pass pass:"$$PASS" 2>/dev/null)" \
 		|| { echo "Decryption failed."; exit 1; }; \
-	unset PASS; \
+		unset PASS; \
+	if "$$(printf '%s\n' "$$PLAINTEXT" |grep -q '^GH_TOKEN=' )"; then \
+	echo  "Token not found in encrypted file. Possible password incorrect"; exit 1; fi; \
 	GH_TOKEN="$$(printf '%s\n' "$$PLAINTEXT" | sed -n 's/^GH_TOKEN=\(.*\)$$/\1/p')"; \
 	unset PLAINTEXT; \
 	[ -n "$$GH_TOKEN" ] || { echo "GH_TOKEN missing."; exit 1; }; \
@@ -171,13 +173,13 @@ show-env: test-env
 ###############################################################################
 
 rekey: verify-env
-	@printf '\n==> Change encryption password\n'
-	@read -r -s -p "Enter current password: " OLDPASS; echo; \
-	PLAINTEXT="$$(openssl enc -d $(OPENSSL_CIPHER) \
-		-in "$(ENV_AES)" \
-		$(OPENSSL_KDF) \
-		-pass pass:"$$OLDPASS" 2>/dev/null)" \
-		|| { echo "Wrong password."; exit 1; }; \
+	@printf '\n==> Change encryption password\n'; \
+	read -r -s -p "Enter current password: " OLDPASS; echo; \
+    PLAINTEXT="$$(openssl enc -d $(OPENSSL_CIPHER) \
+    -in "$(ENV_AES)" \
+    $(OPENSSL_KDF) \
+	-pass pass:"$$OLDPASS" 2>/dev/null)" \
+	|| { echo "Wrong password."; exit 1; }; \
 	read -r -s -p "Enter new password: " NEW1; echo; \
 	read -r -s -p "Repeat new password: " NEW2; echo; \
 	[ "$$NEW1" = "$$NEW2" ] || { echo "Passwords do not match."; exit 1; }; \
