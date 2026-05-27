@@ -201,15 +201,16 @@ LINUXINSTALL_DIR := $(HOME)/linuxinstall
 LINUXINSTALL_REPO := dr-arest/linuxinstall
 
 install-user:
-	@printf '\n==> Prepare private repo (user)\n'
-	@if [ -d "$(LINUXINSTALL_DIR)/.git" ]; then \
+	@printf '\n==> Prepare private repo (user)\n'; \
+	SAVEDCWD=$(pwd); \
+	if [ -d "$(LINUXINSTALL_DIR)/.git" ]; then \
 		echo "Updating existing repo..."; \
-		git -C "$(LINUXINSTALL_DIR)" pull --ff-only; \
+		gh repo sync		
+#		git -C "$(LINUXINSTALL_DIR)" pull --ff-only; \
 	else \
 		echo "Cloning private repo..."; \
 		gh repo clone "$(LINUXINSTALL_REPO)" "$(LINUXINSTALL_DIR)"; \
 	fi; \
-	SAVEDCWD=$(pwd); \
 	printf '\n==> Run user installers\n'; \
 	if [ -d "$(LINUXINSTALL_DIR)/user" ]; then \
 		cd "$(LINUXINSTALL_DIR)/user"; \
