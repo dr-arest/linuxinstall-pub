@@ -60,7 +60,7 @@ install: verify-env
 		-pass pass:"$$PASS" 2>/dev/null)" \
 		|| { echo "Decryption failed."; exit 1; }; \
 		unset PASS; \
-	if "$$(printf '%s\n' "$$PLAINTEXT" |grep -q '^GH_TOKEN=' )"; then \
+	if [ ! "$$(printf '%s\n' "$$PLAINTEXT" |grep -q '^GH_TOKEN=' )" ]; then \
 	echo  "Token not found in encrypted file. Possible password incorrect"; exit 1; fi; \
 	GH_TOKEN="$$(printf '%s\n' "$$PLAINTEXT" | sed -n 's/^GH_TOKEN=\(.*\)$$/\1/p')"; \
 	unset PLAINTEXT; \
@@ -205,7 +205,7 @@ install-user:
 	SAVEDCWD=$(pwd); \
 	if [ -d "$(LINUXINSTALL_DIR)/.git" ]; then \
 		echo "Updating existing repo..."; \
-		gh repo sync		
+		gh repo sync; \
 #		git -C "$(LINUXINSTALL_DIR)" pull --ff-only; \
 	else \
 		echo "Cloning private repo..."; \
